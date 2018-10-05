@@ -34,7 +34,9 @@ run `./fileserver -serveDir <directory you want to share> -domains <coma.net,sep
 
 This will do HTTP/2 TLS only serving (probably does http/1.1 as well, but didn't bother to check).  You need to be listening
 on the domain you specified.  This will fetch you a *letsencrypt* certificate for the domain/domains listed.  Should do the
-refreshing as well: but haven't checked
+refreshing as well: but haven't checked.
+
+Also: make sure you understand how the autocert is cached on your system.
 
 https://godoc.org/golang.org/x/crypto/acme/autocert#NewListener
 
