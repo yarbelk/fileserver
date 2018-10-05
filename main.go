@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gobuffalo/packr"
 	"github.com/yarbelk/fileserver/fs"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -24,11 +25,18 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Need a list of domains to listen too")
 		flag.PrintDefaults()
 	}
+	cssBox := packr.NewBox("./static")
+
 	domainsArgs := strings.Split(*domains, ",")
 	fileHandler := fs.FileServer(fs.GoodDir(*serveWhat))
+	http.HandleFunc("/static/css/application.css", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/css")
+		w.Write(cssBox.Bytes("css/application.css"))
+	})
+	http.Handle("/", fileHandler)
 	if !*tls {
-		log.Fatal(http.ListenAndServe(":8080", fileHandler))
+		log.Fatal(http.ListenAndServe(":8080", nil))
 	} else {
-		log.Fatal(http.Serve(autocert.NewListener(domainsArgs...), fileHandler))
+		log.Fatal(http.Serve(autocert.NewListener(domainsArgs...), nil))
 	}
 }

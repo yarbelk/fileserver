@@ -26,6 +26,7 @@ type Display struct {
 	Contents    []DisplayFile
 }
 
+// <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
 // TODO switch to https://bitters.bourbon.io/ or something: bootstrap is stupid heavy weight for this.
 var fileList = template.Must(template.New("fileList").Parse(`
 <!doctype html>
@@ -33,54 +34,50 @@ var fileList = template.Must(template.New("fileList").Parse(`
 <head>
   <meta charset="UTF-8">
   <title>Directory Contents {{ .Dir }}</title>
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <link rel="stylesheet"  type="text/css" href="/static/css/application.css">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/all.css" integrity="sha384-mzrmE5qonljUremFsqc01SB46JvROS7bZs3IO2EmfFsd15uHvIt+Y8vEf7N7fWAU" crossorigin="anonymous">
 </head>
 
 <body>
   <div id="container">
-    <div class="row">
-      <div class="col-1"></div>
-      <div class="col-8">
-        <h1>Directory Contents {{ .Dir }}</h1>
-      </div>
-      <div class="col-3"/></div>
-    </div>
-    <div class="row">
-      <div class="col-1"></div>
-      <div class="col-8">
-        <table class="table-sm">
-          <thead>
-            <tr>
-              <th scope="col">Type</th>
-              <th scope="col">Filename</th>
-              <th scope="col">Size <small>(bytes)</small></th>
-              <th scope="col">Date Modified</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{- if ne .Dir "/" -}}
-            <tr>
-              <td><i class="fas fa-undo-alt"></i></td>
-              <td colspan="3"><a href="{{ .Parent }}">Parent Dir</a></td>
-            </tr>
+  <div class="left-gutter"><p></div>
+  <div class="page-title">
+  <h1>Directory Contents {{ .Dir }}</h1>
+    <div class="file-list">
+      <table class="table-sm">
+        <thead>
+          <tr>
+            <th class="icon" scope="col"></th>
+            <th scope="col">Filename</th>
+            <th scope="col">Size <small>(bytes)</small></th>
+            <th scope="col">Date Modified</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{- if ne .Dir "/" -}}
+          <tr>
+            <td><i class="fas fa-undo-alt"></i></td>
+            <td colspan="3"><a href="{{ .Parent }}">Parent Dir</a></td>
+          </tr>
+          {{- end -}}
+          {{- range .Contents -}}
+          <tr>
+            {{- if .IsDir -}}
+            <td class="icon"><i class="fas fa-folder"></i></td>
+            <td id="folderlink"><a href="{{ .URL }}">{{- .Name }}</a></td>
+            {{- else -}}
+            <td class="icon"><i class="far fa-file"></i></td>
+            <td id="filelink"><a href="{{ .URL }}">{{- .Name }}</a></td>
             {{- end -}}
-            {{- range .Contents -}}
-            <tr>
-              {{- if .IsDir -}}
-              <td><i class="fas fa-folder"></i></td>
-              {{- else -}}
-              <td><i class="far fa-file"></i></td>
-              {{- end -}}
-              <td><a href="{{ .URL }}">{{- .Name }}</a></td>
-              <td>{{- .Size -}}</td>
-              <td>{{- .Modified -}}</td>
-            </tr>
-            {{ end }}
-          </tbody>
-      </table>
-    </div>
-    <div class="col-3"/></div>
+            <td>{{- .Size -}}</td>
+            <td>{{- .Modified -}}</td>
+          </tr>
+          {{ end }}
+        </tbody>
+    </table>
+  </div>
+  </div>
+  <div class="right-gutter"/></div>
   </div>
 </html>
 `))
@@ -196,7 +193,6 @@ func localRedirect(w http.ResponseWriter, r *http.Request, newPath string) {
 
 // ServeFile with new layouts
 func ServeFile(w http.ResponseWriter, r *http.Request, fs http.FileSystem, name string, redirect bool) {
-	const indexPage = "/index.html"
 
 	// Guards and Redirect only
 	f, err := fs.Open(name)
@@ -223,15 +219,12 @@ func ServeFile(w http.ResponseWriter, r *http.Request, fs http.FileSystem, name 
 		dirList(w, r, f)
 		return
 	}
-	var path string
-	switch t := fs.(type) {
-	case GoodDir:
-		path = string(t)
-	default:
-		panic(1)
+	path, ok := fs.(GoodDir)
+	if !ok {
+		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
+		return
 	}
-	// just send the file
-	http.ServeFile(w, r, path)
+	http.ServeFile(w, r, filepath.Join(string(path), name))
 	return
 }
 
